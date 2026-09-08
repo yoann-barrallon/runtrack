@@ -2,10 +2,6 @@ spring:
   mvc:
     problemdetails:
       enabled: true
-  server:
-    error:
-      whitelabel:
-        enabled: false
   application:
     name: runtrack
 
@@ -20,7 +16,15 @@ spring:
     properties:
       hibernate:
         format_sql: true
+  web:
+    error:
+      whitelabel:
+        enabled: false
 
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  security:
+    jwt-secret: ${JWT_SECRET:runtrack-development-secret-key-change-me-32-chars}
