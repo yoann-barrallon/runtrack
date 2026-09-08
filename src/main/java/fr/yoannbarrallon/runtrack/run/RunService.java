@@ -1,0 +1,112 @@
+package fr.yoannbarrallon.runtrack.run;
+
+import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.run.dto.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+public class RunService {
+
+    private final RunSessionRepository runSessionRepository;
+
+    public RunService(RunSessionRepository runSessionRepository) {
+        this.runSessionRepository = runSessionRepository;
+    }
+
+    @Transactional
+    public RunResponse create(CreateRunRequest request, User user) {
+        RunSession runSession = RunSession.builder()
+                .user(user)
+                .title(request.title())
+                .startTime(request.startTime())
+                .durationSeconds(request.durationSeconds())
+                .distanceMeters(request.distanceMeters())
+                .elevationGainMeters(request.elevationGainMeters())
+                .averagePaceSecondsPerKm(calculateAveragePaceSecondsPerKm(
+                        request.durationSeconds(),
+                        request.distanceMeters()
+                ))
+                .sourceType("MANUAL")
+                .build();
+
+        return toResponse(runSessionRepository.save(runSession));
+    }
+
+    @Transactional(readOnly = true)
+    public Page<RunResponse> findAll(User user, Pageable pageable) {
+        return runSessionRepository.findAllByUserOrderByStartTimeDesc(user, pageable)
+                .map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public RunResponse findById(UUID id, User user) {
+        return runSessionRepository.findByIdAndUser(id, user)
+                .map(this::toResponse)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+    }
+
+    @Transactional
+    public RunResponse update(UUID id, UpdateRunRequest request, User user) {
+        RunSession runSession = getOwnedRun(id, user);
+        runSession.setTitle(request.title());
+        runSession.setStartTime(request.startTime());
+        runSession.setDurationSeconds(request.durationSeconds());
+        runSession.setDistanceMeters(request.distanceMeters());
+        runSession.setElevationGainMeters(request.elevationGainMeters());
+        runSession.setAveragePaceSecondsPerKm(calculateAveragePaceSecondsPerKm(
+                request.durationSeconds(),
+                request.distanceMeters()
+        ));
+
+        return toResponse(runSessionRepository.save(runSession));
+    }
+
+    @Transactional
+    public void delete(UUID id, User user) {
+        RunSession runSession = getOwnedRun(id, user);
+        runSessionRepository.delete(runSession);
+    }
+
+    static int calculateAveragePaceSecondsPerKm(int durationSeconds, int distanceMeters) {
+        return (int) Math.round((double) durationSeconds * 1000 / distanceMeters);
+    }
+
+    private RunSession getOwnedRun(UUID id, User user) {
+        return runSessionRepository.findByIdAndUser(id, user)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+    }
+
+    private RunResponse toResponse(RunSession runSession) {
+        List<RunSplitResponse> splits = runSession.getSplits().stream()
+                .map(split -> new RunSplitResponse(
+                        split.getId(),
+                        split.getSplitNumber(),
+                        split.getDurationSeconds(),
+                        split.getAveragePaceSecondsPerKm(),
+                        split.getElevationGainMeters()
+                ))
+                .toList();
+
+        return new RunResponse(
+                runSession.getId(),
+                runSession.getTitle(),
+                runSession.getStartTime(),
+                runSession.getDurationSeconds(),
+                runSession.getDistanceMeters(),
+                runSession.getElevationGainMeters(),
+                runSession.getAveragePaceSecondsPerKm(),
+                runSession.getAverageHeartRate(),
+                runSession.getSourceType(),
+                runSession.getCreatedAt(),
+                splits
+        );
+    }
+}
