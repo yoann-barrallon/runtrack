@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.mock.web.MockMultipartFile;
 
 import java.time.Instant;
 import java.util.UUID;
@@ -23,11 +24,14 @@ class RunServiceTest {
     @Mock
     private RunSessionRepository runSessionRepository;
 
+    @Mock
+    private FitActivityParser fitActivityParser;
+
     private RunService runService;
 
     @BeforeEach
     void setUp() {
-        runService = new RunService(runSessionRepository);
+        runService = new RunService(runSessionRepository, fitActivityParser);
     }
 
     @Test
@@ -57,6 +61,35 @@ class RunServiceTest {
 
         RunResponse response = runService.create(request, user);
         assertThat(response.averagePaceSecondsPerKm()).isEqualTo(360);
+        verify(runSessionRepository).save(any(RunSession.class));
+    }
+
+    @Test
+    void shouldCreateRunFromFitActivity() {
+        User user = User.builder().id(UUID.randomUUID()).email("runner@example.com").build();
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "morning-run.fit",
+                "application/octet-stream",
+                new byte[]{1, 2, 3}
+        );
+        when(fitActivityParser.parse(file)).thenReturn(new FitActivityParser.FitActivityData(
+                Instant.parse("2026-09-08T06:30:00Z"),
+                1800,
+                5000,
+                42,
+                150
+        ));
+        when(runSessionRepository.save(any(RunSession.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        RunResponse response = runService.importFit(file, user);
+
+        assertThat(response.title()).isEqualTo("morning-run");
+        assertThat(response.sourceType()).isEqualTo("FIT");
+        assertThat(response.averagePaceSecondsPerKm()).isEqualTo(360);
+        assertThat(response.averageHeartRate()).isEqualTo(150);
+        verify(fitActivityParser).parse(file);
         verify(runSessionRepository).save(any(RunSession.class));
     }
 

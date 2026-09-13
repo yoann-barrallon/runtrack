@@ -7,6 +7,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
@@ -16,9 +17,11 @@ import java.util.UUID;
 public class RunService {
 
     private final RunSessionRepository runSessionRepository;
+    private final FitActivityParser fitActivityParser;
 
-    public RunService(RunSessionRepository runSessionRepository) {
+    public RunService(RunSessionRepository runSessionRepository, FitActivityParser fitActivityParser) {
         this.runSessionRepository = runSessionRepository;
+        this.fitActivityParser = fitActivityParser;
     }
 
     @Transactional
@@ -35,6 +38,29 @@ public class RunService {
                         request.distanceMeters()
                 ))
                 .sourceType("MANUAL")
+                .build();
+
+        return toResponse(runSessionRepository.save(runSession));
+    }
+
+    @Transactional
+    public RunResponse importFit(MultipartFile file, User user) {
+        FitActivityParser.FitActivityData activity = fitActivityParser.parse(file);
+        String title = resolveTitle(file);
+
+        RunSession runSession = RunSession.builder()
+                .user(user)
+                .title(title)
+                .startTime(activity.startTime())
+                .durationSeconds(toInt(activity.durationSeconds(), "duration"))
+                .distanceMeters(toInt(activity.distanceMeters(), "distance"))
+                .elevationGainMeters(activity.elevationGainMeters())
+                .averagePaceSecondsPerKm(calculateAveragePaceSecondsPerKm(
+                        toInt(activity.durationSeconds(), "duration"),
+                        toInt(activity.distanceMeters(), "distance")
+                ))
+                .averageHeartRate(activity.averageHeartRate())
+                .sourceType("FIT")
                 .build();
 
         return toResponse(runSessionRepository.save(runSession));
@@ -82,6 +108,26 @@ public class RunService {
     private RunSession getOwnedRun(UUID id, User user) {
         return runSessionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+    }
+
+    private String resolveTitle(MultipartFile file) {
+        String filename = file.getOriginalFilename();
+        if (filename == null || filename.isBlank()) {
+            return "Imported FIT activity";
+        }
+
+        int extensionIndex = filename.lastIndexOf('.');
+        return extensionIndex > 0 ? filename.substring(0, extensionIndex) : filename;
+    }
+
+    private int toInt(long value, String fieldName) {
+        if (value <= 0 || value > Integer.MAX_VALUE) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "FIT " + fieldName + " is outside the supported range"
+            );
+        }
+        return (int) value;
     }
 
     private RunResponse toResponse(RunSession runSession) {
