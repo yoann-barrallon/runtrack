@@ -63,6 +63,21 @@ public class RunService {
                 .sourceType("FIT")
                 .build();
 
+        int splitNumber = 1;
+        for (FitActivityParser.FitSplitData split : activity.splits()) {
+            int durationSeconds = toInt(split.durationSeconds(), "split duration");
+            int distanceMeters = toInt(split.distanceMeters(), "split distance");
+            runSession.addSplit(RunSplit.builder()
+                    .splitNumber(splitNumber++)
+                    .durationSeconds(durationSeconds)
+                    .averagePaceSecondsPerKm(calculateAveragePaceSecondsPerKm(
+                            durationSeconds,
+                            distanceMeters
+                    ))
+                    .elevationGainMeters(split.elevationGainMeters())
+                    .build());
+        }
+
         return toResponse(runSessionRepository.save(runSession));
     }
 

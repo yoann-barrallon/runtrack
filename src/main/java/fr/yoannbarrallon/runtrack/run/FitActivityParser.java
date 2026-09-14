@@ -2,6 +2,8 @@ package fr.yoannbarrallon.runtrack.run;
 
 import com.garmin.fit.Decode;
 import com.garmin.fit.FitRuntimeException;
+import com.garmin.fit.LapMesg;
+import com.garmin.fit.LapMesgListener;
 import com.garmin.fit.MesgBroadcaster;
 import com.garmin.fit.SessionMesg;
 import org.springframework.http.HttpStatus;
@@ -11,6 +13,8 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 import java.io.InputStream;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.springframework.stereotype.Component;
 
@@ -26,13 +30,15 @@ public class FitActivityParser {
             Decode decode = new Decode();
             MesgBroadcaster broadcaster = new MesgBroadcaster(decode);
             SessionCollector sessionCollector = new SessionCollector();
+            LapCollector lapCollector = new LapCollector();
             broadcaster.addListener(sessionCollector::collect);
+            broadcaster.addListener(lapCollector::collect);
 
             if (!decode.read(inputStream, broadcaster, broadcaster) || sessionCollector.session() == null) {
                 throw new FitImportException("The FIT file does not contain a session");
             }
 
-            return toActivityData(sessionCollector.session());
+            return toActivityData(sessionCollector.session(), lapCollector.laps());
         } catch (IOException exception) {
             throw new FitImportException("Unable to read the FIT file", exception);
         } catch (FitRuntimeException exception) {
@@ -40,7 +46,7 @@ public class FitActivityParser {
         }
     }
 
-    private FitActivityData toActivityData(SessionMesg session) {
+    private FitActivityData toActivityData(SessionMesg session, List<LapMesg> laps) {
         if (session.getStartTime() == null
                 || session.getTotalTimerTime() == null
                 || session.getTotalDistance() == null
@@ -54,8 +60,31 @@ public class FitActivityParser {
                 Math.round(session.getTotalTimerTime()),
                 Math.round(session.getTotalDistance()),
                 session.getTotalAscent() == null ? 0 : session.getTotalAscent(),
-                session.getAvgHeartRate() == null ? null : session.getAvgHeartRate().intValue()
+                session.getAvgHeartRate() == null ? null : session.getAvgHeartRate().intValue(),
+                laps.stream()
+                        .filter(lap -> lap.getTotalTimerTime() != null
+                                && lap.getTotalDistance() != null
+                                && lap.getTotalTimerTime() > 0
+                                && lap.getTotalDistance() > 0)
+                        .map(lap -> new FitSplitData(
+                                Math.round(lap.getTotalTimerTime()),
+                                Math.round(lap.getTotalDistance()),
+                                lap.getTotalAscent() == null ? 0 : lap.getTotalAscent().intValue()
+                        ))
+                        .toList()
         );
+    }
+
+    private static final class LapCollector {
+        private final List<LapMesg> laps = new ArrayList<>();
+
+        private void collect(LapMesg lap) {
+            laps.add(lap);
+        }
+
+        private List<LapMesg> laps() {
+            return laps;
+        }
     }
 
     private static final class SessionCollector {
@@ -77,7 +106,15 @@ public class FitActivityParser {
             long durationSeconds,
             long distanceMeters,
             int elevationGainMeters,
-            Integer averageHeartRate
+            Integer averageHeartRate,
+            List<FitSplitData> splits
+    ) {
+    }
+
+    public record FitSplitData(
+            long durationSeconds,
+            long distanceMeters,
+            int elevationGainMeters
     ) {
     }
 

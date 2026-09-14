@@ -78,7 +78,11 @@ class RunServiceTest {
                 1800,
                 5000,
                 42,
-                150
+                150,
+                java.util.List.of(
+                        new FitActivityParser.FitSplitData(360, 1000, 8),
+                        new FitActivityParser.FitSplitData(420, 1000, 10)
+                )
         ));
         when(runSessionRepository.save(any(RunSession.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -89,6 +93,9 @@ class RunServiceTest {
         assertThat(response.sourceType()).isEqualTo("FIT");
         assertThat(response.averagePaceSecondsPerKm()).isEqualTo(360);
         assertThat(response.averageHeartRate()).isEqualTo(150);
+        assertThat(response.splits()).hasSize(2);
+        assertThat(response.splits().get(1).splitNumber()).isEqualTo(2);
+        assertThat(response.splits().get(1).averagePaceSecondsPerKm()).isEqualTo(420);
         verify(fitActivityParser).parse(file);
         verify(runSessionRepository).save(any(RunSession.class));
     }
