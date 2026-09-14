@@ -45,7 +45,7 @@ public class RunService {
 
     @Transactional
     public RunResponse importFit(MultipartFile file, User user) {
-        FitActivityParser.FitActivityData activity = fitActivityParser.parse(file);
+        FitActivityData activity = fitActivityParser.parse(file);
         String title = resolveTitle(file);
 
         RunSession runSession = RunSession.builder()
@@ -64,7 +64,7 @@ public class RunService {
                 .build();
 
         int splitNumber = 1;
-        for (FitActivityParser.FitSplitData split : activity.splits()) {
+        for (FitSplitData split : activity.splits()) {
             int durationSeconds = toInt(split.durationSeconds(), "split duration");
             int distanceMeters = toInt(split.distanceMeters(), "split distance");
             runSession.addSplit(RunSplit.builder()

@@ -73,15 +73,15 @@ class RunServiceTest {
                 "application/octet-stream",
                 new byte[]{1, 2, 3}
         );
-        when(fitActivityParser.parse(file)).thenReturn(new FitActivityParser.FitActivityData(
+        when(fitActivityParser.parse(file)).thenReturn(new FitActivityData(
                 Instant.parse("2026-09-08T06:30:00Z"),
                 1800,
                 5000,
                 42,
                 150,
                 java.util.List.of(
-                        new FitActivityParser.FitSplitData(360, 1000, 8),
-                        new FitActivityParser.FitSplitData(420, 1000, 10)
+                        new FitSplitData(360, 1000, 8),
+                        new FitSplitData(420, 1000, 10)
                 )
         ));
         when(runSessionRepository.save(any(RunSession.class)))

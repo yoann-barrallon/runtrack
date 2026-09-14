@@ -6,14 +6,11 @@ import com.garmin.fit.LapMesg;
 import com.garmin.fit.LapMesgListener;
 import com.garmin.fit.MesgBroadcaster;
 import com.garmin.fit.SessionMesg;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
+import com.garmin.fit.SessionMesgListener;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Component;
@@ -29,16 +26,15 @@ public class FitActivityParser {
         try (InputStream inputStream = file.getInputStream()) {
             Decode decode = new Decode();
             MesgBroadcaster broadcaster = new MesgBroadcaster(decode);
-            SessionCollector sessionCollector = new SessionCollector();
-            LapCollector lapCollector = new LapCollector();
-            broadcaster.addListener(sessionCollector::collect);
-            broadcaster.addListener(lapCollector::collect);
+            FitMessageCollector collector = new FitMessageCollector();
+            broadcaster.addListener((SessionMesgListener) collector);
+            broadcaster.addListener((LapMesgListener) collector);
 
-            if (!decode.read(inputStream, broadcaster, broadcaster) || sessionCollector.session() == null) {
+            if (!decode.read(inputStream, broadcaster, broadcaster) || collector.session() == null) {
                 throw new FitImportException("The FIT file does not contain a session");
             }
 
-            return toActivityData(sessionCollector.session(), lapCollector.laps());
+            return toActivityData(collector.session(), collector.laps());
         } catch (IOException exception) {
             throw new FitImportException("Unable to read the FIT file", exception);
         } catch (FitRuntimeException exception) {
@@ -69,64 +65,10 @@ public class FitActivityParser {
                         .map(lap -> new FitSplitData(
                                 Math.round(lap.getTotalTimerTime()),
                                 Math.round(lap.getTotalDistance()),
-                                lap.getTotalAscent() == null ? 0 : lap.getTotalAscent().intValue()
+                                lap.getTotalAscent() == null ? 0 : lap.getTotalAscent()
                         ))
                         .toList()
         );
     }
 
-    private static final class LapCollector {
-        private final List<LapMesg> laps = new ArrayList<>();
-
-        private void collect(LapMesg lap) {
-            laps.add(lap);
-        }
-
-        private List<LapMesg> laps() {
-            return laps;
-        }
-    }
-
-    private static final class SessionCollector {
-        private SessionMesg session;
-
-        private void collect(SessionMesg session) {
-            if (this.session == null) {
-                this.session = session;
-            }
-        }
-
-        private SessionMesg session() {
-            return session;
-        }
-    }
-
-    public record FitActivityData(
-            Instant startTime,
-            long durationSeconds,
-            long distanceMeters,
-            int elevationGainMeters,
-            Integer averageHeartRate,
-            List<FitSplitData> splits
-    ) {
-    }
-
-    public record FitSplitData(
-            long durationSeconds,
-            long distanceMeters,
-            int elevationGainMeters
-    ) {
-    }
-
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public static class FitImportException extends RuntimeException {
-
-        public FitImportException(String message) {
-            super(message);
-        }
-
-        public FitImportException(String message, Throwable cause) {
-            super(message, cause);
-        }
-    }
 }
