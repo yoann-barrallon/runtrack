@@ -1,4 +1,4 @@
-package fr.yoannbarrallon.runtrack.run;
+package fr.yoannbarrallon.runtrack.run.fit;
 
 import com.garmin.fit.Decode;
 import com.garmin.fit.FitRuntimeException;

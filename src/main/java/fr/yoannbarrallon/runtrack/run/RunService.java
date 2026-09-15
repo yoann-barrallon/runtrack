@@ -2,6 +2,11 @@ package fr.yoannbarrallon.runtrack.run;
 
 import fr.yoannbarrallon.runtrack.auth.User;
 import fr.yoannbarrallon.runtrack.run.dto.*;
+import fr.yoannbarrallon.runtrack.run.fit.FitActivityData;
+import fr.yoannbarrallon.runtrack.run.fit.FitActivityParser;
+import fr.yoannbarrallon.runtrack.run.fit.FitSplitData;
+import fr.yoannbarrallon.runtrack.stat.PersonalRecordService;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -16,15 +21,22 @@ import java.util.UUID;
 @Service
 public class RunService {
 
-    private final RunSessionRepository runSessionRepository;
+    private final RunRepository runSessionRepository;
+    private final PersonalRecordService personalRecordService;
     private final FitActivityParser fitActivityParser;
 
-    public RunService(RunSessionRepository runSessionRepository, FitActivityParser fitActivityParser) {
+    public RunService(
+            RunRepository runSessionRepository,
+            FitActivityParser fitActivityParser,
+            PersonalRecordService personalRecordService
+    ) {
         this.runSessionRepository = runSessionRepository;
         this.fitActivityParser = fitActivityParser;
+        this.personalRecordService = personalRecordService;
     }
 
     @Transactional
+    @CacheEvict(value = "user_stats", key = "#user.id")
     public RunResponse create(CreateRunRequest request, User user) {
         RunSession runSession = RunSession.builder()
                 .user(user)
@@ -40,10 +52,13 @@ public class RunService {
                 .sourceType("MANUAL")
                 .build();
 
-        return toResponse(runSessionRepository.save(runSession));
+        RunSession savedRun = runSessionRepository.save(runSession);
+        personalRecordService.detectRecords(savedRun);
+        return toResponse(savedRun);
     }
 
     @Transactional
+    @CacheEvict(value = "user_stats", key = "#user.id")
     public RunResponse importFit(MultipartFile file, User user) {
         FitActivityData activity = fitActivityParser.parse(file);
         String title = resolveTitle(file);
@@ -78,7 +93,9 @@ public class RunService {
                     .build());
         }
 
-        return toResponse(runSessionRepository.save(runSession));
+        RunSession savedRun = runSessionRepository.save(runSession);
+        personalRecordService.detectRecords(savedRun);
+        return toResponse(savedRun);
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +112,7 @@ public class RunService {
     }
 
     @Transactional
+    @CacheEvict(value = "user_stats", key = "#user.id")
     public RunResponse update(UUID id, UpdateRunRequest request, User user) {
         RunSession runSession = getOwnedRun(id, user);
         runSession.setTitle(request.title());
@@ -107,10 +125,13 @@ public class RunService {
                 request.distanceMeters()
         ));
 
-        return toResponse(runSessionRepository.save(runSession));
+        RunSession savedRun = runSessionRepository.save(runSession);
+        personalRecordService.detectRecords(savedRun);
+        return toResponse(savedRun);
     }
 
     @Transactional
+    @CacheEvict(value = "user_stats", key = "#user.id")
     public void delete(UUID id, User user) {
         RunSession runSession = getOwnedRun(id, user);
         runSessionRepository.delete(runSession);

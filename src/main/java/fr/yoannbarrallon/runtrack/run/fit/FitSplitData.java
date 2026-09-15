@@ -1,4 +1,4 @@
-package fr.yoannbarrallon.runtrack.run;
+package fr.yoannbarrallon.runtrack.run.fit;
 
 public record FitSplitData(
         long durationSeconds,

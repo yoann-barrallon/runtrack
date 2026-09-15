@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.Optional;
 import java.util.UUID;
 
-public interface RunSessionRepository extends JpaRepository<RunSession, UUID> {
+public interface RunRepository extends JpaRepository<RunSession, UUID> {
 
     Page<RunSession> findAllByUserOrderByStartTimeDesc(User user, Pageable pageable);
 

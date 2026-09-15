@@ -4,6 +4,10 @@ import fr.yoannbarrallon.runtrack.auth.User;
 import fr.yoannbarrallon.runtrack.run.dto.CreateRunRequest;
 import fr.yoannbarrallon.runtrack.run.dto.RunResponse;
 import fr.yoannbarrallon.runtrack.run.dto.UpdateRunRequest;
+import fr.yoannbarrallon.runtrack.run.fit.FitActivityData;
+import fr.yoannbarrallon.runtrack.run.fit.FitActivityParser;
+import fr.yoannbarrallon.runtrack.run.fit.FitSplitData;
+import fr.yoannbarrallon.runtrack.stat.PersonalRecordService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -22,16 +26,19 @@ import static org.mockito.Mockito.*;
 class RunServiceTest {
 
     @Mock
-    private RunSessionRepository runSessionRepository;
+    private RunRepository runSessionRepository;
 
     @Mock
     private FitActivityParser fitActivityParser;
+
+    @Mock
+    private PersonalRecordService personalRecordService;
 
     private RunService runService;
 
     @BeforeEach
     void setUp() {
-        runService = new RunService(runSessionRepository, fitActivityParser);
+        runService = new RunService(runSessionRepository, fitActivityParser, personalRecordService);
     }
 
     @Test

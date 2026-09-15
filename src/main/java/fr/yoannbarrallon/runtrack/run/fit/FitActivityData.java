@@ -1,4 +1,4 @@
-package fr.yoannbarrallon.runtrack.run;
+package fr.yoannbarrallon.runtrack.run.fit;
 
 import java.time.Instant;
 import java.util.List;
