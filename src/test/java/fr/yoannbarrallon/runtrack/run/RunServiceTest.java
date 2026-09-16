@@ -21,6 +21,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -104,6 +105,27 @@ class RunServiceTest {
 
         assertThat(response.title()).isEqualTo("Planned run");
         verify(runSessionRepository).save(argThat(run -> run.getPlannedSession() == plannedSession));
+    }
+
+    @Test
+    void shouldRejectRunLinkedToUnknownPlannedSession() {
+        User user = User.builder().id(UUID.randomUUID()).email("runner@example.com").build();
+        UUID plannedSessionId = UUID.randomUUID();
+        CreateRunRequest request = new CreateRunRequest(
+                "Invalid planned run",
+                Instant.parse("2026-09-08T06:30:00Z"),
+                1800,
+                5000,
+                42,
+                plannedSessionId
+        );
+        when(plannedSessionRepository.findByIdAndPlan_User(plannedSessionId, user))
+                .thenReturn(java.util.Optional.empty());
+
+        assertThatThrownBy(() -> runService.create(request, user))
+                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .hasMessageContaining("Planned session not found");
+        verifyNoInteractions(runSessionRepository);
     }
 
     @Test

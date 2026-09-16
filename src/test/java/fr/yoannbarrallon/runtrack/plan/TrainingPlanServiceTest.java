@@ -9,6 +9,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -16,6 +17,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -113,5 +115,65 @@ class TrainingPlanServiceTest {
 
         assertThat(response.status()).isEqualTo(TrainingPlanStatus.COMPLETED);
         verify(trainingPlanRepository).save(plan);
+    }
+
+    @Test
+    void shouldRejectPlanWithEndDateBeforeStartDate() {
+        CreateTrainingPlanRequest request = new CreateTrainingPlanRequest(
+                "Invalid plan",
+                GoalDistanceType.FIVE_K,
+                LocalDate.of(2026, 10, 1),
+                LocalDate.of(2026, 9, 30),
+                List.of(new PlannedSessionRequest(
+                        LocalDate.of(2026, 10, 1),
+                        PlannedSessionType.EASY_RUN,
+                        5000,
+                        1800,
+                        null
+                ))
+        );
+
+        assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("End date must not be before start date");
+        verifyNoInteractions(trainingPlanRepository);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenThereIsNoActivePlan() {
+        User user = User.builder().id(UUID.randomUUID()).build();
+        when(trainingPlanRepository.findByUserAndStatus(user, TrainingPlanStatus.ACTIVE))
+                .thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trainingPlanService.findActive(user))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Active training plan not found");
+    }
+
+    @Test
+    void shouldRejectTryingToReactivateAPlanThroughStatusEndpoint() {
+        assertThatThrownBy(() -> trainingPlanService.updateStatus(
+                UUID.randomUUID(),
+                new UpdateTrainingPlanStatusRequest(TrainingPlanStatus.ACTIVE),
+                User.builder().build()
+        ))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("A plan can only be closed");
+        verifyNoInteractions(trainingPlanRepository);
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenClosingAnUnknownPlan() {
+        UUID planId = UUID.randomUUID();
+        User user = User.builder().id(UUID.randomUUID()).build();
+        when(trainingPlanRepository.findByIdAndUser(planId, user)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> trainingPlanService.updateStatus(
+                planId,
+                new UpdateTrainingPlanStatusRequest(TrainingPlanStatus.COMPLETED),
+                user
+        ))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Training plan not found");
     }
 }
