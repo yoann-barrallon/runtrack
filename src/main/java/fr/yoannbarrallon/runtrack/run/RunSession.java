@@ -1,6 +1,7 @@
 package fr.yoannbarrallon.runtrack.run;
 
 import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.plan.entity.PlannedSession;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -25,6 +26,10 @@ public class RunSession {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "planned_session_id")
+    private PlannedSession plannedSession;
 
     @Column(nullable = false, length = 150)
     private String title;
