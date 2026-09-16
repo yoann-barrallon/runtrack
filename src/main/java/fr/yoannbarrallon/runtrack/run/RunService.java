@@ -5,6 +5,8 @@ import fr.yoannbarrallon.runtrack.run.dto.*;
 import fr.yoannbarrallon.runtrack.run.fit.FitActivityData;
 import fr.yoannbarrallon.runtrack.run.fit.FitActivityParser;
 import fr.yoannbarrallon.runtrack.run.fit.FitSplitData;
+import fr.yoannbarrallon.runtrack.plan.entity.PlannedSession;
+import fr.yoannbarrallon.runtrack.plan.repository.PlannedSessionRepository;
 import fr.yoannbarrallon.runtrack.stat.PersonalRecordService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
@@ -24,15 +26,18 @@ public class RunService {
     private final RunRepository runSessionRepository;
     private final PersonalRecordService personalRecordService;
     private final FitActivityParser fitActivityParser;
+    private final PlannedSessionRepository plannedSessionRepository;
 
     public RunService(
             RunRepository runSessionRepository,
             FitActivityParser fitActivityParser,
-            PersonalRecordService personalRecordService
+            PersonalRecordService personalRecordService,
+            PlannedSessionRepository plannedSessionRepository
     ) {
         this.runSessionRepository = runSessionRepository;
         this.fitActivityParser = fitActivityParser;
         this.personalRecordService = personalRecordService;
+        this.plannedSessionRepository = plannedSessionRepository;
     }
 
     @Transactional
@@ -40,6 +45,7 @@ public class RunService {
     public RunResponse create(CreateRunRequest request, User user) {
         RunSession runSession = RunSession.builder()
                 .user(user)
+                .plannedSession(resolvePlannedSession(request.plannedSessionId(), user))
                 .title(request.title())
                 .startTime(request.startTime())
                 .durationSeconds(request.durationSeconds())
@@ -144,6 +150,17 @@ public class RunService {
     private RunSession getOwnedRun(UUID id, User user) {
         return runSessionRepository.findByIdAndUser(id, user)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+    }
+
+    private PlannedSession resolvePlannedSession(UUID plannedSessionId, User user) {
+        if (plannedSessionId == null) {
+            return null;
+        }
+        return plannedSessionRepository.findByIdAndPlan_User(plannedSessionId, user)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "Planned session not found"
+                ));
     }
 
     private String resolveTitle(MultipartFile file) {

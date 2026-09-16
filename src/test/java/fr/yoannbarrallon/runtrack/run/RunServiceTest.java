@@ -8,6 +8,8 @@ import fr.yoannbarrallon.runtrack.run.fit.FitActivityData;
 import fr.yoannbarrallon.runtrack.run.fit.FitActivityParser;
 import fr.yoannbarrallon.runtrack.run.fit.FitSplitData;
 import fr.yoannbarrallon.runtrack.stat.PersonalRecordService;
+import fr.yoannbarrallon.runtrack.plan.repository.PlannedSessionRepository;
+import fr.yoannbarrallon.runtrack.plan.entity.PlannedSession;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,11 +36,19 @@ class RunServiceTest {
     @Mock
     private PersonalRecordService personalRecordService;
 
+    @Mock
+    private PlannedSessionRepository plannedSessionRepository;
+
     private RunService runService;
 
     @BeforeEach
     void setUp() {
-        runService = new RunService(runSessionRepository, fitActivityParser, personalRecordService);
+        runService = new RunService(
+                runSessionRepository,
+                fitActivityParser,
+                personalRecordService,
+                plannedSessionRepository
+        );
     }
 
     @Test
@@ -61,7 +71,8 @@ class RunServiceTest {
                 Instant.parse("2026-09-08T06:30:00Z"),
                 1800,
                 5000,
-                42
+                42,
+                null
         );
         when(runSessionRepository.save(any(RunSession.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0));
@@ -69,6 +80,30 @@ class RunServiceTest {
         RunResponse response = runService.create(request, user);
         assertThat(response.averagePaceSecondsPerKm()).isEqualTo(360);
         verify(runSessionRepository).save(any(RunSession.class));
+    }
+
+    @Test
+    void shouldLinkRunToOwnedPlannedSession() {
+        User user = User.builder().id(UUID.randomUUID()).email("runner@example.com").build();
+        UUID plannedSessionId = UUID.randomUUID();
+        PlannedSession plannedSession = PlannedSession.builder().id(plannedSessionId).build();
+        CreateRunRequest request = new CreateRunRequest(
+                "Planned run",
+                Instant.parse("2026-09-08T06:30:00Z"),
+                1800,
+                5000,
+                42,
+                plannedSessionId
+        );
+        when(plannedSessionRepository.findByIdAndPlan_User(plannedSessionId, user))
+                .thenReturn(java.util.Optional.of(plannedSession));
+        when(runSessionRepository.save(any(RunSession.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0));
+
+        RunResponse response = runService.create(request, user);
+
+        assertThat(response.title()).isEqualTo("Planned run");
+        verify(runSessionRepository).save(argThat(run -> run.getPlannedSession() == plannedSession));
     }
 
     @Test

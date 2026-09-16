@@ -6,12 +6,14 @@ import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public record CreateRunRequest(
         @NotBlank String title,
         @NotNull Instant startTime,
         @NotNull @Positive Integer durationSeconds,
         @NotNull @Positive Integer distanceMeters,
-        @NotNull @PositiveOrZero Integer elevationGainMeters
+        @NotNull @PositiveOrZero Integer elevationGainMeters,
+        UUID plannedSessionId
 ) {
 }
