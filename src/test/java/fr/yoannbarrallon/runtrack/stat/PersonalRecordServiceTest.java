@@ -2,6 +2,7 @@ package fr.yoannbarrallon.runtrack.stat;
 
 import fr.yoannbarrallon.runtrack.auth.User;
 import fr.yoannbarrallon.runtrack.run.RunSession;
+import fr.yoannbarrallon.runtrack.run.RunRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -23,11 +25,14 @@ class PersonalRecordServiceTest {
     @Mock
     private PersonalRecordRepository personalRecordRepository;
 
+    @Mock
+    private RunRepository runRepository;
+
     private PersonalRecordService personalRecordService;
 
     @BeforeEach
     void setUp() {
-        personalRecordService = new PersonalRecordService(personalRecordRepository);
+        personalRecordService = new PersonalRecordService(personalRecordRepository, runRepository);
     }
 
     @Test
@@ -88,6 +93,24 @@ class PersonalRecordServiceTest {
 
         assertThat(record.getTimeSeconds()).isEqualTo(1_600);
         verify(personalRecordRepository, never()).save(record);
+    }
+
+    @Test
+    void shouldRecalculateRecordsFromAllRemainingRuns() {
+        User user = user();
+        RunSession run = run(user, 5_000, 1_500);
+        when(runRepository.findAllByUserOrderByStartTimeAsc(user)).thenReturn(List.of(run));
+        when(personalRecordRepository.findByUserIdAndDistanceType(
+                eq(user.getId()),
+                any(RecordDistanceType.class)
+        )).thenReturn(Optional.empty());
+
+        personalRecordService.recalculateRecords(user);
+
+        verify(personalRecordRepository).deleteAllByUserId(user.getId());
+        verify(runRepository).findAllByUserOrderByStartTimeAsc(user);
+        verify(personalRecordRepository, times(2))
+                .save(argThat(record -> record.getRunSession() == run));
     }
 
     private User user() {

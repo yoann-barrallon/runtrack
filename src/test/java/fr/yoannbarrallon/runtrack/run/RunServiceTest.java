@@ -81,6 +81,7 @@ class RunServiceTest {
         RunResponse response = runService.create(request, user);
         assertThat(response.averagePaceSecondsPerKm()).isEqualTo(360);
         verify(runSessionRepository).save(any(RunSession.class));
+        verify(personalRecordService).detectRecords(any(RunSession.class));
     }
 
     @Test
@@ -105,6 +106,7 @@ class RunServiceTest {
 
         assertThat(response.title()).isEqualTo("Planned run");
         verify(runSessionRepository).save(argThat(run -> run.getPlannedSession() == plannedSession));
+        verify(personalRecordService).detectRecords(any(RunSession.class));
     }
 
     @Test
@@ -193,6 +195,7 @@ class RunServiceTest {
         assertThat(response.title()).isEqualTo("Updated title");
         assertThat(response.averagePaceSecondsPerKm()).isEqualTo(400);
         verify(runSessionRepository).save(runSession);
+        verify(personalRecordService).recalculateRecords(user);
     }
 
     @Test
@@ -205,5 +208,7 @@ class RunServiceTest {
         runService.delete(runId, user);
 
         verify(runSessionRepository).delete(runSession);
+        verify(runSessionRepository).flush();
+        verify(personalRecordService).recalculateRecords(user);
     }
 }

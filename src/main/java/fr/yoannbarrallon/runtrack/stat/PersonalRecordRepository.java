@@ -11,4 +11,6 @@ public interface PersonalRecordRepository extends JpaRepository<PersonalRecord, 
     Optional<PersonalRecord> findByUserIdAndDistanceType(UUID userId, RecordDistanceType distanceType);
 
     List<PersonalRecord> findAllByUserId(UUID userId);
+
+    void deleteAllByUserId(UUID userId);
 }

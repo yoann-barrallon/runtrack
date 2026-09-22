@@ -132,7 +132,7 @@ public class RunService {
         ));
 
         RunSession savedRun = runSessionRepository.save(runSession);
-        personalRecordService.detectRecords(savedRun);
+        personalRecordService.recalculateRecords(user);
         return toResponse(savedRun);
     }
 
@@ -141,6 +141,8 @@ public class RunService {
     public void delete(UUID id, User user) {
         RunSession runSession = getOwnedRun(id, user);
         runSessionRepository.delete(runSession);
+        runSessionRepository.flush();
+        personalRecordService.recalculateRecords(user);
     }
 
     static int calculateAveragePaceSecondsPerKm(int durationSeconds, int distanceMeters) {

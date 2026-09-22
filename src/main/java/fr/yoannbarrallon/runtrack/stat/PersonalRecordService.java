@@ -1,6 +1,8 @@
 package fr.yoannbarrallon.runtrack.stat;
 
 import fr.yoannbarrallon.runtrack.run.RunSession;
+import fr.yoannbarrallon.runtrack.run.RunRepository;
+import fr.yoannbarrallon.runtrack.auth.User;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -8,9 +10,20 @@ import org.springframework.transaction.annotation.Transactional;
 public class PersonalRecordService {
 
     private final PersonalRecordRepository personalRecordRepository;
+    private final RunRepository runRepository;
 
-    public PersonalRecordService(PersonalRecordRepository personalRecordRepository) {
+    public PersonalRecordService(
+            PersonalRecordRepository personalRecordRepository,
+            RunRepository runRepository
+    ) {
         this.personalRecordRepository = personalRecordRepository;
+        this.runRepository = runRepository;
+    }
+    @Transactional
+    public void recalculateRecords(User user) {
+        personalRecordRepository.deleteAllByUserId(user.getId());
+        runRepository.findAllByUserOrderByStartTimeAsc(user)
+                .forEach(this::detectRecords);
     }
 
     @Transactional
@@ -19,7 +32,6 @@ public class PersonalRecordService {
             if (runSession.getDistanceMeters() < distanceType.distanceMeters()) {
                 continue;
             }
-
             int timeSeconds = (int) Math.round(
                     (double) runSession.getDurationSeconds() * distanceType.distanceMeters()
                             / runSession.getDistanceMeters()
