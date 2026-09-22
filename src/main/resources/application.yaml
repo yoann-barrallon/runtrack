@@ -1,4 +1,9 @@
 spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/runtrack_db
+    username: runner
+    password: secret
+    driver-class-name: org.postgresql.Driver
   mvc:
     problemdetails:
       enabled: true
