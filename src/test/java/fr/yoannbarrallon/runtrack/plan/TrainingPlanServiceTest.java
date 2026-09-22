@@ -140,6 +140,26 @@ class TrainingPlanServiceTest {
     }
 
     @Test
+    void shouldRejectPlannedSessionBeforePlanStartDate() {
+        CreateTrainingPlanRequest request = validPlanRequest(LocalDate.of(2026, 8, 31));
+
+        assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Planned session date must be within the training plan dates");
+        verifyNoInteractions(trainingPlanRepository);
+    }
+
+    @Test
+    void shouldRejectPlannedSessionAfterPlanEndDate() {
+        CreateTrainingPlanRequest request = validPlanRequest(LocalDate.of(2026, 10, 16));
+
+        assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasMessageContaining("Planned session date must be within the training plan dates");
+        verifyNoInteractions(trainingPlanRepository);
+    }
+
+    @Test
     void shouldReturnNotFoundWhenThereIsNoActivePlan() {
         User user = User.builder().id(UUID.randomUUID()).build();
         when(trainingPlanRepository.findByUserAndStatus(user, TrainingPlanStatus.ACTIVE))
@@ -175,5 +195,21 @@ class TrainingPlanServiceTest {
         ))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("Training plan not found");
+    }
+
+    private CreateTrainingPlanRequest validPlanRequest(LocalDate targetDate) {
+        return new CreateTrainingPlanRequest(
+                "10K preparation",
+                GoalDistanceType.TEN_K,
+                LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 10, 15),
+                List.of(new PlannedSessionRequest(
+                        targetDate,
+                        PlannedSessionType.EASY_RUN,
+                        5000,
+                        1800,
+                        null
+                ))
+        );
     }
 }

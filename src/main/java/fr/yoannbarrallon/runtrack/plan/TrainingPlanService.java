@@ -35,15 +35,16 @@ public class TrainingPlanService {
                 .status(TrainingPlanStatus.ACTIVE)
                 .build();
 
-        request.plannedSessions().forEach(sessionRequest -> plan.addPlannedSession(
-                PlannedSession.builder()
-                        .targetDate(sessionRequest.targetDate())
-                        .sessionType(sessionRequest.sessionType())
-                        .targetDistanceMeters(sessionRequest.targetDistanceMeters())
-                        .targetDurationSeconds(sessionRequest.targetDurationSeconds())
-                        .description(sessionRequest.description())
-                        .build()
-        ));
+        request.plannedSessions().forEach(sessionRequest -> {
+            validateSessionDate(sessionRequest.targetDate(), request.startDate(), request.endDate());
+            plan.addPlannedSession(PlannedSession.builder()
+                    .targetDate(sessionRequest.targetDate())
+                    .sessionType(sessionRequest.sessionType())
+                    .targetDistanceMeters(sessionRequest.targetDistanceMeters())
+                    .targetDurationSeconds(sessionRequest.targetDurationSeconds())
+                    .description(sessionRequest.description())
+                    .build());
+        });
 
         return toResponse(trainingPlanRepository.save(plan), false);
     }
@@ -73,6 +74,15 @@ public class TrainingPlanService {
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (endDate.isBefore(startDate)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End date must not be before start date");
+        }
+    }
+
+    private void validateSessionDate(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
+        if (targetDate.isBefore(startDate) || targetDate.isAfter(endDate)) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Planned session date must be within the training plan dates"
+            );
         }
     }
 
