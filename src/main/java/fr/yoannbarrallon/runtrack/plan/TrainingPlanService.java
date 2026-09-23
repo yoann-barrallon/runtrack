@@ -1,14 +1,14 @@
 package fr.yoannbarrallon.runtrack.plan;
 
 import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.exception.BusinessRuleViolationException;
+import fr.yoannbarrallon.runtrack.exception.ResourceNotFoundException;
 import fr.yoannbarrallon.runtrack.plan.dto.*;
 import fr.yoannbarrallon.runtrack.plan.entity.PlannedSession;
 import fr.yoannbarrallon.runtrack.plan.entity.TrainingPlan;
 import fr.yoannbarrallon.runtrack.plan.repository.TrainingPlanRepository;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -52,7 +52,7 @@ public class TrainingPlanService {
     @Transactional(readOnly = true)
     public TrainingPlanResponse findActive(User user) {
         TrainingPlan plan = trainingPlanRepository.findByUserAndStatus(user, TrainingPlanStatus.ACTIVE)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Active training plan not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Active training plan not found"));
         return toResponse(plan, true);
     }
 
@@ -63,24 +63,23 @@ public class TrainingPlanService {
             User user
     ) {
         if (request.status() == TrainingPlanStatus.ACTIVE) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "A plan can only be closed");
+            throw new BusinessRuleViolationException("A plan can only be closed");
         }
         TrainingPlan plan = trainingPlanRepository.findByIdAndUser(id, user)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Training plan not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Training plan not found"));
         plan.setStatus(request.status());
         return toResponse(trainingPlanRepository.save(plan), false);
     }
 
     private void validateDates(LocalDate startDate, LocalDate endDate) {
         if (endDate.isBefore(startDate)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "End date must not be before start date");
+            throw new BusinessRuleViolationException("End date must not be before start date");
         }
     }
 
     private void validateSessionDate(LocalDate targetDate, LocalDate startDate, LocalDate endDate) {
         if (targetDate.isBefore(startDate) || targetDate.isAfter(endDate)) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw new BusinessRuleViolationException(
                     "Planned session date must be within the training plan dates"
             );
         }

@@ -1,6 +1,8 @@
 package fr.yoannbarrallon.runtrack.run;
 
 import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.exception.BusinessRuleViolationException;
+import fr.yoannbarrallon.runtrack.exception.ResourceNotFoundException;
 import fr.yoannbarrallon.runtrack.run.dto.*;
 import fr.yoannbarrallon.runtrack.run.fit.FitActivityData;
 import fr.yoannbarrallon.runtrack.run.fit.FitActivityParser;
@@ -11,11 +13,9 @@ import fr.yoannbarrallon.runtrack.stat.PersonalRecordService;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 import java.util.UUID;
@@ -114,7 +114,7 @@ public class RunService {
     public RunResponse findById(UUID id, User user) {
         return runSessionRepository.findByIdAndUser(id, user)
                 .map(this::toResponse)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Run not found"));
     }
 
     @Transactional
@@ -151,7 +151,7 @@ public class RunService {
 
     private RunSession getOwnedRun(UUID id, User user) {
         return runSessionRepository.findByIdAndUser(id, user)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Run not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Run not found"));
     }
 
     private PlannedSession resolvePlannedSession(UUID plannedSessionId, User user) {
@@ -159,8 +159,7 @@ public class RunService {
             return null;
         }
         return plannedSessionRepository.findByIdAndPlan_User(plannedSessionId, user)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND,
+                .orElseThrow(() -> new ResourceNotFoundException(
                         "Planned session not found"
                 ));
     }
@@ -177,8 +176,7 @@ public class RunService {
 
     private int toInt(long value, String fieldName) {
         if (value <= 0 || value > Integer.MAX_VALUE) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw new BusinessRuleViolationException(
                     "FIT " + fieldName + " is outside the supported range"
             );
         }

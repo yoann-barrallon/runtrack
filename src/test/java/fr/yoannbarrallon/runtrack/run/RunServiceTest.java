@@ -1,6 +1,7 @@
 package fr.yoannbarrallon.runtrack.run;
 
 import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.exception.ResourceNotFoundException;
 import fr.yoannbarrallon.runtrack.run.dto.CreateRunRequest;
 import fr.yoannbarrallon.runtrack.run.dto.RunResponse;
 import fr.yoannbarrallon.runtrack.run.dto.UpdateRunRequest;
@@ -125,7 +126,7 @@ class RunServiceTest {
                 .thenReturn(java.util.Optional.empty());
 
         assertThatThrownBy(() -> runService.create(request, user))
-                .isInstanceOf(org.springframework.web.server.ResponseStatusException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Planned session not found");
         verifyNoInteractions(runSessionRepository);
     }

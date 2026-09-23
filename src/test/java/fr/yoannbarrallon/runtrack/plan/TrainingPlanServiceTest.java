@@ -1,6 +1,8 @@
 package fr.yoannbarrallon.runtrack.plan;
 
 import fr.yoannbarrallon.runtrack.auth.User;
+import fr.yoannbarrallon.runtrack.exception.BusinessRuleViolationException;
+import fr.yoannbarrallon.runtrack.exception.ResourceNotFoundException;
 import fr.yoannbarrallon.runtrack.plan.dto.*;
 import fr.yoannbarrallon.runtrack.plan.entity.TrainingPlan;
 import fr.yoannbarrallon.runtrack.plan.repository.TrainingPlanRepository;
@@ -9,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -134,7 +135,7 @@ class TrainingPlanServiceTest {
         );
 
         assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(BusinessRuleViolationException.class)
                 .hasMessageContaining("End date must not be before start date");
         verifyNoInteractions(trainingPlanRepository);
     }
@@ -144,7 +145,7 @@ class TrainingPlanServiceTest {
         CreateTrainingPlanRequest request = validPlanRequest(LocalDate.of(2026, 8, 31));
 
         assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(BusinessRuleViolationException.class)
                 .hasMessageContaining("Planned session date must be within the training plan dates");
         verifyNoInteractions(trainingPlanRepository);
     }
@@ -154,7 +155,7 @@ class TrainingPlanServiceTest {
         CreateTrainingPlanRequest request = validPlanRequest(LocalDate.of(2026, 10, 16));
 
         assertThatThrownBy(() -> trainingPlanService.create(request, User.builder().build()))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(BusinessRuleViolationException.class)
                 .hasMessageContaining("Planned session date must be within the training plan dates");
         verifyNoInteractions(trainingPlanRepository);
     }
@@ -166,7 +167,7 @@ class TrainingPlanServiceTest {
                 .thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> trainingPlanService.findActive(user))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Active training plan not found");
     }
 
@@ -177,7 +178,7 @@ class TrainingPlanServiceTest {
                 new UpdateTrainingPlanStatusRequest(TrainingPlanStatus.ACTIVE),
                 User.builder().build()
         ))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(BusinessRuleViolationException.class)
                 .hasMessageContaining("A plan can only be closed");
         verifyNoInteractions(trainingPlanRepository);
     }
@@ -193,7 +194,7 @@ class TrainingPlanServiceTest {
                 new UpdateTrainingPlanStatusRequest(TrainingPlanStatus.COMPLETED),
                 user
         ))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ResourceNotFoundException.class)
                 .hasMessageContaining("Training plan not found");
     }
 
