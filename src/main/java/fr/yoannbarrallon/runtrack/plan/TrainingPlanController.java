@@ -2,6 +2,7 @@ package fr.yoannbarrallon.runtrack.plan;
 
 import fr.yoannbarrallon.runtrack.auth.User;
 import fr.yoannbarrallon.runtrack.plan.dto.*;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/plans")
+@SecurityRequirement(name = "bearerAuth")
 public class TrainingPlanController {
 
     private final TrainingPlanService trainingPlanService;

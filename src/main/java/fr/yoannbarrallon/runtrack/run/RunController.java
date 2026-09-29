@@ -5,6 +5,7 @@ import fr.yoannbarrallon.runtrack.run.dto.CreateRunRequest;
 import fr.yoannbarrallon.runtrack.run.dto.RunResponse;
 import fr.yoannbarrallon.runtrack.run.dto.UpdateRunRequest;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -17,6 +18,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/runs")
+@SecurityRequirement(name = "bearerAuth")
 public class RunController {
 
     private final RunService runService;

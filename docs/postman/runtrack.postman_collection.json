@@ -1,0 +1,197 @@
+{
+  "info": {
+    "_postman_id": "0e2c1df2-2b7a-4d33-8c0d-runtrack",
+    "name": "Runtrack API",
+    "description": "Collection de démonstration de l'API Runtrack. Exécuter Login pour remplir automatiquement le token JWT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "if (pm.response.code === 200 || pm.response.code === 201) {",
+          "  const body = pm.response.json();",
+          "  if (body.token) pm.collectionVariables.set('jwt', body.token);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "jwt", "value": "" },
+    { "key": "runId", "value": "replace-with-run-uuid" },
+    { "key": "planId", "value": "replace-with-plan-uuid" },
+    { "key": "fitFile", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"runner@example.com\",\n  \"password\": \"password123\",\n  \"firstName\": \"Runner\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/register"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"runner@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/auth/login"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Runs",
+      "item": [
+        {
+          "name": "Create manual run",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Morning run\",\n  \"startTime\": \"2026-09-29T06:30:00Z\",\n  \"durationSeconds\": 1800,\n  \"distanceMeters\": 5000,\n  \"elevationGainMeters\": 42\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/runs"
+          }
+        },
+        {
+          "name": "List runs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/runs?page=0&size=20"
+          }
+        },
+        {
+          "name": "Get run",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/runs/{{runId}}"
+          }
+        },
+        {
+          "name": "Update run",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Updated morning run\",\n  \"startTime\": \"2026-09-29T06:30:00Z\",\n  \"durationSeconds\": 1740,\n  \"distanceMeters\": 5000,\n  \"elevationGainMeters\": 42\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/runs/{{runId}}"
+          }
+        },
+        {
+          "name": "Delete run",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/runs/{{runId}}"
+          }
+        },
+        {
+          "name": "Import FIT",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "file", "type": "file", "src": "{{fitFile}}" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/v1/runs/import/fit"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Statistics",
+      "item": [
+        {
+          "name": "Overall statistics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/stats/overall"
+          }
+        },
+        {
+          "name": "Weekly statistics",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/stats/weekly"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Training plans",
+      "item": [
+        {
+          "name": "Create plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"10K preparation\",\n  \"goalDistanceType\": \"TEN_K\",\n  \"startDate\": \"2026-10-01\",\n  \"endDate\": \"2026-11-15\",\n  \"plannedSessions\": [\n    {\n      \"targetDate\": \"2026-10-02\",\n      \"sessionType\": \"EASY_RUN\",\n      \"targetDistanceMeters\": 5000,\n      \"targetDurationSeconds\": 1800,\n      \"description\": \"Easy aerobic run\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/plans"
+          }
+        },
+        {
+          "name": "Get active plan",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{jwt}}" }],
+            "url": "{{baseUrl}}/api/v1/plans/active"
+          }
+        },
+        {
+          "name": "Close plan",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{jwt}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"COMPLETED\"\n}"
+            },
+            "url": "{{baseUrl}}/api/v1/plans/{{planId}}/status"
+          }
+        }
+      ]
+    }
+  ]
+}
