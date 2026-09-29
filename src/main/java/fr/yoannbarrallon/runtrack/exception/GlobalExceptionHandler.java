@@ -6,20 +6,27 @@ import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
 import fr.yoannbarrallon.runtrack.plan.TrainingPlanStatus;
 import fr.yoannbarrallon.runtrack.run.fit.FitImportException;
 import jakarta.validation.ConstraintViolationException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MultipartException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler({BusinessRuleViolationException.class, FitImportException.class})
     public ResponseEntity<ApiErrorResponse> handleBadRequest(RuntimeException exception) {
@@ -29,6 +36,24 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ApiErrorResponse> handleNotFound(ResourceNotFoundException exception) {
         return buildResponse(HttpStatus.NOT_FOUND, exception.getMessage());
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException exception) {
+        return buildResponse(HttpStatus.NOT_FOUND, "Path not found: /" + exception.getResourcePath());
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException exception) {
+        return buildResponse(HttpStatus.METHOD_NOT_ALLOWED, "HTTP method " + exception.getMethod() + " is not supported for this endpoint");
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ApiErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
+        String message = String.format("Parameter '%s' should be of type %s",
+                exception.getName(),
+                exception.getRequiredType() != null ? exception.getRequiredType().getSimpleName() : "unknown");
+        return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 
     @ExceptionHandler(AuthenticationException.class)
@@ -60,6 +85,12 @@ public class GlobalExceptionHandler {
     })
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest() {
         return buildResponse(HttpStatus.BAD_REQUEST, "Request body or multipart data is invalid");
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleAllUncaughtExceptions(Exception exception) {
+        log.error("Unhandled internal server error", exception);
+        return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "An unexpected internal error occurred");
     }
 
     private String readableRequestMessage(HttpMessageNotReadableException exception) {
