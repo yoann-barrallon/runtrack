@@ -6,7 +6,7 @@ spring:
     driver-class-name: org.postgresql.Driver
   mvc:
     problemdetails:
-      enabled: true
+      enabled: false
   application:
     name: runtrack
 

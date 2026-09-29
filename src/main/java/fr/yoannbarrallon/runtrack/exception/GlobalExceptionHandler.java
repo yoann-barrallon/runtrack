@@ -1,5 +1,9 @@
 package fr.yoannbarrallon.runtrack.exception;
 
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.exc.InvalidFormatException;
+import com.fasterxml.jackson.databind.exc.UnrecognizedPropertyException;
+import fr.yoannbarrallon.runtrack.plan.TrainingPlanStatus;
 import fr.yoannbarrallon.runtrack.run.fit.FitImportException;
 import jakarta.validation.ConstraintViolationException;
 import org.springframework.http.HttpStatus;
@@ -45,13 +49,67 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, exception.getMessage());
     }
 
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ApiErrorResponse> handleUnreadableRequest(HttpMessageNotReadableException exception) {
+        return buildResponse(HttpStatus.BAD_REQUEST, readableRequestMessage(exception));
+    }
+
     @ExceptionHandler({
-            HttpMessageNotReadableException.class,
             MultipartException.class,
             MissingServletRequestPartException.class
     })
     public ResponseEntity<ApiErrorResponse> handleMalformedRequest() {
         return buildResponse(HttpStatus.BAD_REQUEST, "Request body or multipart data is invalid");
+    }
+
+    private String readableRequestMessage(HttpMessageNotReadableException exception) {
+        Throwable cause = findCause(exception, InvalidFormatException.class);
+        if (cause instanceof InvalidFormatException invalidFormatException
+                && invalidFormatException.getTargetType().isEnum()) {
+            return invalidEnumMessage(invalidFormatException);
+        }
+        UnrecognizedPropertyException unrecognizedPropertyException =
+                findCause(exception, UnrecognizedPropertyException.class);
+        if (unrecognizedPropertyException != null) {
+            return "Unknown field '" + unrecognizedPropertyException.getPropertyName() + "'";
+        }
+        if (exception.getMessage() != null
+                && exception.getMessage().contains(TrainingPlanStatus.class.getSimpleName())) {
+            return "Invalid value for 'status'. Allowed values: "
+                    + String.join(", ", java.util.Arrays.stream(TrainingPlanStatus.values())
+                    .map(Enum::name)
+                    .toList());
+        }
+        return "Request body is invalid";
+    }
+
+    private String invalidEnumMessage(InvalidFormatException exception) {
+        String field = fieldName(exception);
+        String allowedValues = String.join(
+                ", ",
+                java.util.Arrays.stream(exception.getTargetType().getEnumConstants())
+                        .map(Object::toString)
+                        .toList()
+        );
+        return "Invalid value for '" + field + "'. Allowed values: " + allowedValues;
+    }
+
+    private <T extends Throwable> T findCause(Throwable exception, Class<T> type) {
+        Throwable current = exception;
+        while (current != null) {
+            if (type.isInstance(current)) {
+                return type.cast(current);
+            }
+            current = current.getCause();
+        }
+        return null;
+    }
+
+    private String fieldName(JsonMappingException exception) {
+        return exception.getPath().stream()
+                .reduce((first, second) -> second)
+                .map(JsonMappingException.Reference::getFieldName)
+                .orElse("request");
     }
 
     private ResponseEntity<ApiErrorResponse> buildResponse(HttpStatus status, String message) {
