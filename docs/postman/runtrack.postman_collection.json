@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "0e2c1df2-2b7a-4d33-8c0d-runtrack",
     "name": "Runtrack API",
-    "description": "Collection de démonstration de l'API Runtrack. Exécuter Login pour remplir automatiquement le token JWT.",
+    "description": "Runtrack API demo collection. Run Login to automatically populate the JWT token.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
